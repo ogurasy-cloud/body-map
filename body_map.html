@@ -84,4 +84,135 @@
                 if (data && data.length > 0 && data[0].body_map_points) {
                     const savedData = typeof data[0].body_map_points === 'string' 
                                         ? JSON.parse(data[0].body_map_points) 
-                                        : data[
+                                        : data[0].body_map_points;
+                    
+                    // 以前のデータ形式との互換性を確保
+                    if (savedData && savedData.front) points.front = savedData.front;
+                    if (savedData && savedData.back) points.back = savedData.back;
+                    
+                    updateView(); // 読み込み完了後に確実に再描画
+                }
+            }).catch(err => console.error("読込エラー:", err));
+        }
+        
+        loadPointsFromSupabase();
+
+        function updateView() {
+            const img = currentView === 'front' ? frontImg : backImg;
+            if (!img.complete) return;
+
+            const stageW = stage.width() || window.innerWidth;
+            const stageH = stage.height() || window.innerHeight;
+            
+            const paddingTop = 70;
+            // 極端に狭い画面でもエラーにならないよう保護
+            const availableH = Math.max(stageH - paddingTop, 50);
+
+            const imgW = img.width || 800;
+            const imgH = img.height || 1000;
+            
+            currentScale = Math.min(stageW / imgW, availableH / imgH);
+            const newW = imgW * currentScale;
+            const newH = imgH * currentScale;
+
+            bgX = (stageW - newW) / 2;
+            bgY = paddingTop + (availableH - newH) / 2;
+
+            bgImage.image(img);
+            bgImage.width(newW);
+            bgImage.height(newH);
+            bgImage.x(bgX);
+            bgImage.y(bgY);
+
+            layer.find('.marker').forEach(p => p.destroy());
+            
+            // エラーが起きても描画全体が止まらないよう保護
+            try {
+                if (points && points[currentView]) {
+                    points[currentView].forEach(p => drawMarker(p));
+                }
+            } catch(e) {
+                console.error("マーカー描画エラー", e);
+            }
+            
+            layer.draw();
+        }
+
+        frontImg.onload = updateView;
+        backImg.onload = updateView;
+        setTimeout(updateView, 300);
+
+        function setTool(tool) {
+            currentTool = tool;
+            document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-' + tool).classList.add('active');
+        }
+
+        function toggleView() {
+            currentView = currentView === 'front' ? 'back' : 'front';
+            document.getElementById('viewToggle').innerText = currentView === 'front' ? '背面へ' : '前面へ';
+            updateView();
+        }
+
+        function drawMarker(data) {
+            // データが壊れている場合はスキップ
+            if (!data || data.x === undefined || data.y === undefined) return;
+
+            const px = parseFloat(data.x) || 0;
+            const py = parseFloat(data.y) || 0;
+
+            const stageX = (px * currentScale) + bgX;
+            const stageY = (py * currentScale) + bgY;
+
+            let marker;
+            const config = { x: stageX, y: stageY, radius: 10, fill: data.color || '#ff4d4f', draggable: true, name: 'marker', id: data.id };
+            
+            if (data.type === 'circle') marker = new Konva.Circle(config);
+            else if (data.type === 'triangle') marker = new Konva.RegularPolygon({...config, sides: 3, radius: 12});
+            else if (data.type === 'star') marker = new Konva.Star({...config, numPoints: 5, innerRadius: 5, outerRadius: 12});
+            else marker = new Konva.Circle(config); // 未知のタイプは円にする
+
+            marker.on('dragend', (e) => {
+                const updatedPoint = points[currentView].find(p => p.id === data.id);
+                if (updatedPoint) {
+                    updatedPoint.x = (e.target.x() - bgX) / currentScale;
+                    updatedPoint.y = (e.target.y() - bgY) / currentScale;
+                    savePointsToSupabase();
+                }
+            });
+
+            marker.on('dblclick dbltap', () => {
+                points[currentView] = points[currentView].filter(p => p.id !== data.id);
+                marker.destroy();
+                layer.draw();
+                savePointsToSupabase();
+            });
+
+            layer.add(marker);
+        }
+
+        stage.on('click tap', (e) => {
+            if (e.target !== bgImage) return;
+            const pos = stage.getPointerPosition();
+            
+            const relativeX = (pos.x - bgX) / currentScale;
+            const relativeY = (pos.y - bgY) / currentScale;
+
+            const newPoint = {
+                id: Date.now().toString(), x: relativeX, y: relativeY, type: currentTool,
+                color: currentTool === 'circle' ? '#ff4d4f' : (currentTool === 'triangle' ? '#1890ff' : '#722ed1')
+            };
+            points[currentView].push(newPoint);
+            drawMarker(newPoint);
+            layer.draw();
+            savePointsToSupabase();
+        });
+
+        window.addEventListener('resize', () => {
+            stage.width(window.innerWidth);
+            stage.height(window.innerHeight);
+            updateView();
+        });
+    </script>
+</body>
+</html>
