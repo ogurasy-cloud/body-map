@@ -86,11 +86,10 @@
                                         ? JSON.parse(data[0].body_map_points) 
                                         : data[0].body_map_points;
                     
-                    // 以前のデータ形式との互換性を確保
                     if (savedData && savedData.front) points.front = savedData.front;
                     if (savedData && savedData.back) points.back = savedData.back;
                     
-                    updateView(); // 読み込み完了後に確実に再描画
+                    updateView(); 
                 }
             }).catch(err => console.error("読込エラー:", err));
         }
@@ -105,7 +104,6 @@
             const stageH = stage.height() || window.innerHeight;
             
             const paddingTop = 70;
-            // 極端に狭い画面でもエラーにならないよう保護
             const availableH = Math.max(stageH - paddingTop, 50);
 
             const imgW = img.width || 800;
@@ -126,7 +124,6 @@
 
             layer.find('.marker').forEach(p => p.destroy());
             
-            // エラーが起きても描画全体が止まらないよう保護
             try {
                 if (points && points[currentView]) {
                     points[currentView].forEach(p => drawMarker(p));
@@ -155,7 +152,6 @@
         }
 
         function drawMarker(data) {
-            // データが壊れている場合はスキップ
             if (!data || data.x === undefined || data.y === undefined) return;
 
             const px = parseFloat(data.x) || 0;
@@ -165,12 +161,13 @@
             const stageY = (py * currentScale) + bgY;
 
             let marker;
-            const config = { x: stageX, y: stageY, radius: 10, fill: data.color || '#ff4d4f', draggable: true, name: 'marker', id: data.id };
+            // ★radiusを小さく変更（タッチしづらくならないギリギリのサイズ）
+            const config = { x: stageX, y: stageY, radius: 6, fill: data.color || '#ff4d4f', draggable: true, name: 'marker', id: data.id };
             
             if (data.type === 'circle') marker = new Konva.Circle(config);
-            else if (data.type === 'triangle') marker = new Konva.RegularPolygon({...config, sides: 3, radius: 12});
-            else if (data.type === 'star') marker = new Konva.Star({...config, numPoints: 5, innerRadius: 5, outerRadius: 12});
-            else marker = new Konva.Circle(config); // 未知のタイプは円にする
+            else if (data.type === 'triangle') marker = new Konva.RegularPolygon({...config, sides: 3, radius: 8});
+            else if (data.type === 'star') marker = new Konva.Star({...config, numPoints: 5, innerRadius: 4, outerRadius: 9});
+            else marker = new Konva.Circle(config);
 
             marker.on('dragend', (e) => {
                 const updatedPoint = points[currentView].find(p => p.id === data.id);
