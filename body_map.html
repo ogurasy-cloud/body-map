@@ -49,10 +49,12 @@
         const layer = new Konva.Layer();
         stage.add(layer);
 
+        // GitHub内の同じフォルダの画像を読み込む
         const frontImg = new Image();
         const backImg = new Image();
         frontImg.src = 'body-front.svg.svg'; 
         backImg.src = 'body-back.svg.svg';
+
         const bgImage = new Konva.Image({ x: 0, y: 0 });
         layer.add(bgImage);
 
@@ -100,27 +102,42 @@
 
         function updateView() {
             const img = currentView === 'front' ? frontImg : backImg;
+            
+            // 画像が読み込み中なら描画を待つ
             if (!img.complete) return;
 
             const stageW = stage.width();
             const stageH = stage.height();
+            
+            // ★ツールバーと被らないように上部に余白(70px)を作る
+            const paddingTop = 70;
+            const availableH = stageH - paddingTop;
+
+            // SVGにサイズ指定がない場合のエラー回避用デフォルトサイズ
             const imgW = img.width || 800;
             const imgH = img.height || 1000;
-            const scale = Math.min(stageW / imgW, stageH / imgH);
-            
+
+            // 余白を除いたスペースに合わせて比率を計算
+            const scale = Math.min(stageW / imgW, availableH / imgH);
+            const newW = imgW * scale;
+            const newH = imgH * scale;
+
             bgImage.image(img);
-            bgImage.width(imgW * scale);
-            bgImage.height(imgH * scale);
-            bgImage.x((stageW - (imgW * scale)) / 2);
-            bgImage.y((stageH - (imgH * scale)) / 2);
+            bgImage.width(newW);
+            bgImage.height(newH);
+            bgImage.x((stageW - newW) / 2);
+            // 画像の位置を上に 70px 下げる
+            bgImage.y(paddingTop + (availableH - newH) / 2);
 
             layer.find('.marker').forEach(p => p.destroy());
             points[currentView].forEach(p => drawMarker(p));
             layer.draw();
         }
 
+        // 画像の読み込み完了時に表示を更新
         frontImg.onload = updateView;
         backImg.onload = updateView;
+        // 念のため少し遅れて再描画（SVG用）
         setTimeout(updateView, 300);
 
         function setTool(tool) {
@@ -138,6 +155,7 @@
         function drawMarker(data) {
             let marker;
             const config = { x: data.x, y: data.y, radius: 10, fill: data.color, draggable: true, name: 'marker', id: data.id };
+            
             if (data.type === 'circle') marker = new Konva.Circle(config);
             if (data.type === 'triangle') marker = new Konva.RegularPolygon({...config, sides: 3, radius: 12});
             if (data.type === 'star') marker = new Konva.Star({...config, numPoints: 5, innerRadius: 5, outerRadius: 12});
@@ -164,7 +182,9 @@
         }
 
         stage.on('click tap', (e) => {
+            // 背景画像以外をクリックした場合は何もしない
             if (e.target !== bgImage) return;
+            
             const pos = stage.getPointerPosition();
             const newPoint = {
                 id: Date.now().toString(), x: pos.x, y: pos.y, type: currentTool,
@@ -176,6 +196,7 @@
             savePointsToSupabase(); // ★追加したら保存
         });
 
+        // 画面サイズ変更時にも比率を再計算
         window.addEventListener('resize', () => {
             stage.width(window.innerWidth);
             stage.height(window.innerHeight);
