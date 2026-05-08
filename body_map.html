@@ -102,6 +102,7 @@
             if (data.type === 'triangle') marker = new Konva.RegularPolygon({...config, sides: 3, radius: 12});
             if (data.type === 'star') marker = new Konva.Star({...config, numPoints: 5, innerRadius: 5, outerRadius: 12});
 
+            // 消しゴムツール選択時のシングルタップ削除
             marker.on('click tap', () => {
                 if (currentTool === 'eraser') {
                     points[currentView] = points[currentView].filter(p => p.id !== data.id);
@@ -109,8 +110,17 @@
                     layer.draw();
                 }
             });
+
+            // ★追加：ダブルタップ（ダブルクリック）での直感的な削除
+            marker.on('dblclick dbltap', () => {
+                points[currentView] = points[currentView].filter(p => p.id !== data.id);
+                marker.destroy();
+                layer.draw();
+            });
+
             layer.add(marker);
         }
+
 
         stage.on('click tap', (e) => {
             if (e.target !== bgImage || currentTool === 'eraser') return;
