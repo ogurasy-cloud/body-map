@@ -53,4 +53,89 @@
         layer.add(bgImage);
 
         function updateView() {
-            const img = currentView === 'front' ? frontImg
+            const img = currentView === 'front' ? frontImg : backImg;
+            
+            // 画像が読み込み中なら描画を待つ
+            if (!img.complete) return;
+
+            const stageW = stage.width();
+            const stageH = stage.height();
+            
+            // SVGにサイズ指定がない場合のエラー回避用デフォルトサイズ
+            const imgW = img.width || 800;
+            const imgH = img.height || 1000;
+
+            const scale = Math.min(stageW / imgW, stageH / imgH);
+            const newW = imgW * scale;
+            const newH = imgH * scale;
+
+            bgImage.image(img);
+            bgImage.width(newW);
+            bgImage.height(newH);
+            bgImage.x((stageW - newW) / 2);
+            bgImage.y((stageH - newH) / 2);
+
+            layer.find('.marker').forEach(p => p.destroy());
+            points[currentView].forEach(p => drawMarker(p));
+            layer.draw();
+        }
+
+        // 画像の読み込み完了時に表示を更新
+        frontImg.onload = updateView;
+        backImg.onload = updateView;
+        // 念のため少し遅れて再描画（SVG用）
+        setTimeout(updateView, 300);
+
+        function setTool(tool) {
+            currentTool = tool;
+            document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-' + tool).classList.add('active');
+        }
+
+        function toggleView() {
+            currentView = currentView === 'front' ? 'back' : 'front';
+            document.getElementById('viewToggle').innerText = currentView === 'front' ? '背面へ' : '前面へ';
+            updateView();
+        }
+
+        function drawMarker(data) {
+            let marker;
+            const config = { x: data.x, y: data.y, radius: 10, fill: data.color, draggable: true, name: 'marker', id: data.id };
+            
+            if (data.type === 'circle') marker = new Konva.Circle(config);
+            if (data.type === 'triangle') marker = new Konva.RegularPolygon({...config, sides: 3, radius: 12});
+            if (data.type === 'star') marker = new Konva.Star({...config, numPoints: 5, innerRadius: 5, outerRadius: 12});
+
+            // ★ダブルタップ（ダブルクリック）での削除
+            marker.on('dblclick dbltap', () => {
+                points[currentView] = points[currentView].filter(p => p.id !== data.id);
+                marker.destroy();
+                layer.draw();
+            });
+
+            layer.add(marker);
+        }
+
+        stage.on('click tap', (e) => {
+            // 背景画像以外をクリックした場合は何もしない
+            if (e.target !== bgImage) return;
+            
+            const pos = stage.getPointerPosition();
+            const newPoint = {
+                id: Date.now().toString(), x: pos.x, y: pos.y, type: currentTool,
+                color: currentTool === 'circle' ? '#ff4d4f' : (currentTool === 'triangle' ? '#1890ff' : '#722ed1')
+            };
+            points[currentView].push(newPoint);
+            drawMarker(newPoint);
+            layer.draw();
+        });
+
+        // 画面サイズ変更時にも比率を再計算
+        window.addEventListener('resize', () => {
+            stage.width(window.innerWidth);
+            stage.height(window.innerHeight);
+            updateView();
+        });
+    </script>
+</body>
+</html>
