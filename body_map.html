@@ -44,7 +44,6 @@
         let currentTool = 'circle';
         let points = { front: [], back: [] };
 
-        // ★画面リサイズ対応のためのグローバル変数
         let currentScale = 1;
         let bgX = 0;
         let bgY = 0;
@@ -81,4 +80,8 @@
                 headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
             })
             .then(res => res.json())
-            .then(data
+            .then(data => {
+                if (data && data.length > 0 && data[0].body_map_points) {
+                    const savedData = typeof data[0].body_map_points === 'string' 
+                                        ? JSON.parse(data[0].body_map_points) 
+                                        : data[
