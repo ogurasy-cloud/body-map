@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Body Map - Konva</title>
+    <script src="https://unpkg.com/konva@9/konva.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; background-color: transparent; overflow: hidden; font-family: sans-serif; }
+        #container { width: 100vw; height: 100vh; background-color: #fff; }
+        .controls {
+            position: absolute; top: 10px; left: 10px; z-index: 10;
+            display: flex; gap: 8px; background: rgba(255,255,255,0.9);
+            padding: 8px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .tool-btn {
+            width: 44px; height: 44px; border: 2px solid #eee; border-radius: 8px;
+            background: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 20px; transition: all 0.2s;
+        }
+        .tool-btn.active { border-color: #007bff; background: #e7f3ff; color: #007bff; }
+        .side-btn { position: absolute; top: 10px; right: 10px; z-index: 10; }
+        .action-btn {
+            padding: 8px 16px; border-radius: 20px; border: none;
+            background: #333; color: white; font-weight: bold; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <button class="tool-btn active" onclick="setTool('circle', this)">●</button>
+        <button class="tool-btn" onclick="setTool('triangle', this)">▲</button>
+        <button class="tool-btn" onclick="setTool('star', this)">★</button>
+        <button class="tool-btn" onclick="setTool('eraser', this)" style="font-size: 16px;">消</button>
+    </div>
+    <div class="side-btn">
+        <button id="viewToggle" class="action-btn" onclick="toggleView()">背面へ</button>
+    </div>
+    <div id="container"></div>
+
+    <script>
+        let currentView = 'front';
+        let currentTool = 'circle';
+        const points = { front: [], back: [] };
+
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        const stage = new Konva.Stage({ container: 'container', width: width, height: height });
+        const layer = new Konva.Layer();
+        stage.add(layer);
+
+        // 背景画像の設定
+        const bgImage = new Konva.Image({ x: 0, y: 0, width: width, height: height });
+        layer.add(bgImage);
+
+        const frontImg = new Image();
+        const backImg = new Image();
+       frontImg.src = 'https://storage.googleapis.com/flutterflow-io-6f20.appspot.com/projects/web-app-7jwkm0/assets/kt0m8zbgaq0e/body-front.svg.svg';
+backImg.src  = 'https://storage.googleapis.com/flutterflow-io-6f20.appspot.com/projects/web-app-7jwkm0/assets/sg9cbi3xbd7z/body-back.svg.svg';
+
+        function updateBackground() {
+            bgImage.image(currentView === 'front' ? frontImg : backImg);
+            // 既存の点を一旦クリアして、その面の点だけ描画
+            layer.find('.point').forEach(p => p.destroy());
+            points[currentView].forEach(pData => drawPoint(pData));
+            layer.draw();
+        }
+
+        frontImg.onload = updateBackground;
+
+        function setTool(tool, btn) {
+            currentTool = tool;
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        function toggleView() {
+            currentView = currentView === 'front' ? 'back' : 'front';
+            document.getElementById('viewToggle').innerText = currentView === 'front' ? '背面へ' : '前面へ';
+            updateBackground();
+        }
+
+        function drawPoint(data) {
+            let shape;
+            const config = {
+                x: data.x, y: data.y, radius: 10, fill: data.color || 'red',
+                draggable: true, name: 'point', id: data.id
+            };
+
+            if (data.type === 'circle') {
+                shape = new Konva.Circle(config);
+            } else if (data.type === 'triangle') {
+                shape = new Konva.RegularPolygon({...config, sides: 3, radius: 12});
+            } else if (data.type === 'star') {
+                shape = new Konva.Star({...config, numPoints: 5, innerRadius: 5, outerRadius: 12});
+            }
+
+            shape.on('click tap', (e) => {
+                if (currentTool === 'eraser') {
+                    points[currentView] = points[currentView].filter(p => p.id !== data.id);
+                    shape.destroy();
+                    layer.draw();
+                }
+            });
+
+            layer.add(shape);
+        }
+
+        stage.on('click tap', (e) => {
+            if (e.target !== bgImage) return;
+            if (currentTool === 'eraser') return;
+
+            const pos = stage.getPointerPosition();
+            const newPoint = {
+                id: Date.now().toString(),
+                x: pos.x, y: pos.y,
+                type: currentTool,
+                color: currentTool === 'circle' ? '#ff4d4f' : (currentTool === 'triangle' ? '#1890ff' : '#722ed1')
+            };
+
+            points[currentView].push(newPoint);
+            drawPoint(newPoint);
+            layer.draw();
+        });
+
+        // FlutterFlowからデータを取り出すための関数
+        function getPointsData() {
+            return JSON.stringify(points);
+        }
+    </script>
+</body>
+</html>
