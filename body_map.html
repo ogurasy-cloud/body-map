@@ -12,9 +12,9 @@
             padding: 8px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         .btn {
-            width: 44px; height: 44px; border: 2px solid #ddd; border-radius: 8px;
-            background: white; font-size: 20px; cursor: pointer; transition: 0.2s;
-            display: flex; align-items: center; justify-content: center;
+            padding: 0 12px; height: 44px; border: 2px solid #ddd; border-radius: 8px;
+            background: white; font-size: 15px; font-weight: bold; cursor: pointer; transition: 0.2s;
+            display: flex; align-items: center; justify-content: center; white-space: nowrap;
         }
         .btn.active { border-color: #007bff; background: #e7f3ff; color: #007bff; }
         .toggle-btn {
@@ -26,10 +26,9 @@
 </head>
 <body>
     <div class="controls">
-        <button id="btn-circle" class="btn active" onclick="setTool('circle')">●</button>
-        <button id="btn-triangle" class="btn" onclick="setTool('triangle')">▲</button>
-        <button id="btn-star" class="btn" onclick="setTool('star')">★</button>
-        <button id="btn-eraser" class="btn" onclick="setTool('eraser')" style="font-size:16px">消</button>
+        <button id="btn-circle" class="btn active" onclick="setTool('circle')">● 鍼</button>
+        <button id="btn-triangle" class="btn" onclick="setTool('triangle')">▲ 灸</button>
+        <button id="btn-star" class="btn" onclick="setTool('star')">★ 通電</button>
     </div>
     <button id="viewToggle" class="toggle-btn" onclick="toggleView()">背面へ</button>
     
@@ -44,7 +43,7 @@
         const layer = new Konva.Layer();
         stage.add(layer);
 
-        // ★相対パスでGitHub内の同じフォルダの画像を読み込む（エラー回避）
+        // GitHub内の同じフォルダの画像を読み込む
         const frontImg = new Image();
         const backImg = new Image();
         frontImg.src = 'body-front.svg.svg'; 
@@ -54,92 +53,4 @@
         layer.add(bgImage);
 
         function updateView() {
-            const img = currentView === 'front' ? frontImg : backImg;
-            
-            // 画像が読み込まれていない場合は処理を待つ
-            if (!img.width) return;
-
-            // ★アスペクト比を保って画面中央に収める計算
-            const stageW = stage.width();
-            const stageH = stage.height();
-            const scale = Math.min(stageW / img.width, stageH / img.height);
-            
-            const newW = img.width * scale;
-            const newH = img.height * scale;
-
-            bgImage.image(img);
-            bgImage.width(newW);
-            bgImage.height(newH);
-            bgImage.x((stageW - newW) / 2);
-            bgImage.y((stageH - newH) / 2);
-
-            layer.find('.marker').forEach(p => p.destroy());
-            points[currentView].forEach(p => drawMarker(p));
-            layer.draw();
-        }
-
-        // 画像の読み込み完了時に表示を更新
-        frontImg.onload = updateView;
-        backImg.onload = updateView;
-
-        function setTool(tool) {
-            currentTool = tool;
-            document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('btn-' + tool).classList.add('active');
-        }
-
-        function toggleView() {
-            currentView = currentView === 'front' ? 'back' : 'front';
-            document.getElementById('viewToggle').innerText = currentView === 'front' ? '背面へ' : '前面へ';
-            updateView();
-        }
-
-        function drawMarker(data) {
-            let marker;
-            const config = { x: data.x, y: data.y, radius: 10, fill: data.color, draggable: true, name: 'marker', id: data.id };
-            
-            if (data.type === 'circle') marker = new Konva.Circle(config);
-            if (data.type === 'triangle') marker = new Konva.RegularPolygon({...config, sides: 3, radius: 12});
-            if (data.type === 'star') marker = new Konva.Star({...config, numPoints: 5, innerRadius: 5, outerRadius: 12});
-
-            // 消しゴムツール選択時のシングルタップ削除
-            marker.on('click tap', () => {
-                if (currentTool === 'eraser') {
-                    points[currentView] = points[currentView].filter(p => p.id !== data.id);
-                    marker.destroy();
-                    layer.draw();
-                }
-            });
-
-            // ★追加：ダブルタップ（ダブルクリック）での直感的な削除
-            marker.on('dblclick dbltap', () => {
-                points[currentView] = points[currentView].filter(p => p.id !== data.id);
-                marker.destroy();
-                layer.draw();
-            });
-
-            layer.add(marker);
-        }
-
-
-        stage.on('click tap', (e) => {
-            if (e.target !== bgImage || currentTool === 'eraser') return;
-            const pos = stage.getPointerPosition();
-            const newPoint = {
-                id: Date.now().toString(), x: pos.x, y: pos.y, type: currentTool,
-                color: currentTool === 'circle' ? '#ff4d4f' : (currentTool === 'triangle' ? '#1890ff' : '#722ed1')
-            };
-            points[currentView].push(newPoint);
-            drawMarker(newPoint);
-            layer.draw();
-        });
-
-        // 画面サイズ変更時にも比率を再計算
-        window.addEventListener('resize', () => {
-            stage.width(window.innerWidth);
-            stage.height(window.innerHeight);
-            updateView();
-        });
-    </script>
-</body>
-</html>
+            const img = currentView === 'front' ? frontImg
